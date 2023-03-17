@@ -462,7 +462,7 @@
 
 (declare result-viewer)
 
-(defn transform-result [{:as _cell :keys [result form] ::keys [doc]}]
+(defn transform-result [{:as cell :keys [result form] ::keys [doc]}]
   (let [{:keys [auto-expand-results? inline-results? bundle?]} doc
         {:nextjournal/keys [value blob-id budget viewers]} result
         blob-mode (cond
@@ -470,7 +470,8 @@
                     bundle? :inline ;; TODO: provide a separte setting for this
                     :else :file)
         #?(:clj blob-opts :cljs _) (assoc doc :blob-mode blob-mode :blob-id blob-id)
-        presented-result (->> (present (cond-> (ensure-wrapped-with-viewers (or viewers (get-viewers *ns*)) value)
+        presented-result (->> (present (cond-> (merge (ensure-wrapped-with-viewers (or viewers (get-viewers *ns*)) value)
+                                                      (dissoc cell :result))
                                          (contains? result :nextjournal/budget) (assoc :nextjournal/budget budget)))
                               #?(:clj (process-blobs blob-opts)))
         opts-from-form-meta (-> result
@@ -1166,9 +1167,12 @@
               (throw (ex-info (str "cannot find viewer named " selected-viewer)
                               {:selected-viewer selected-viewer :viewers viewers})))
           selected-viewer))
-      (find-viewer viewers (let [v (->value x)]
-                             (fn [{:keys [pred]}]
-                               (and (ifn? pred) (pred v)))))
+      (find-viewer viewers (fn [{:keys [pred]}]
+                             (and (ifn? pred) (if-let [wrapped-pred (and (map? pred)
+                                                                         (ifn? (:wrapped pred))
+                                                                         (:wrapped pred))]
+                                                (wrapped-pred x)
+                                                (pred (->value x))))))
       (throw (ex-info (str "cannot find matching viewer for value")
                       {:value (->value x) :viewers viewers :x x}))))
 
