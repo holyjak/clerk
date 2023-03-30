@@ -823,7 +823,7 @@
 
 (defn render-code-block [code-string {:keys [id]}]
   ^{:key id}
-  [:div.viewer.code-viewer.w-full.max-w-wide {:data-block-id id}
+  [:div.viewer.code-viewer.w-full.max-w-wide {:id id}
    [code/render-code code-string]])
 
 (defn render-folded-code-block [code-string {:keys [id]}]
